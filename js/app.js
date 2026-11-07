@@ -424,6 +424,8 @@ const App = (function () {
              '<input type="text" inputmode="decimal" id="seuil' + i + '" value="' + fmtCourt(seuils[i - 1]) + '" style="width:88px">';
     }).join('');
 
+    etatJeton();
+
     const n = actifs().length;
     $('infoLocal').innerHTML =
       n + ' relevé' + (n > 1 ? 's' : '') + ' enregistré' + (n > 1 ? 's' : '') + ' sur cet appareil.' +
@@ -431,26 +433,84 @@ const App = (function () {
     $('versionApp').textContent = VERSION;
   }
 
+  function voirJeton() {
+    const ch = $('gJeton'), b = $('btnOeil');
+    const cache = ch.type === 'password';
+    ch.type = cache ? 'text' : 'password';
+    b.textContent = cache ? 'cacher' : 'voir';
+  }
+
+  /* Dit en clair ce que contient chaque case, sans afficher la cle entiere */
+  function etatJeton() {
+    const owner = $('gOwner').value.trim();
+    const repo  = $('gRepo').value.trim();
+    const jeton = $('gJeton').value.trim();
+    const bouts = [];
+
+    bouts.push(owner ? '✓ compte : ' + echap(owner) : '✗ case « compte GitHub » vide');
+    bouts.push(repo  ? '✓ dépôt : '  + echap(repo)  : '✗ case « dépôt des données » vide');
+
+    if (!jeton) {
+      bouts.push('✗ case « jeton » vide');
+    } else if (jeton.indexOf(' ') !== -1 || jeton.indexOf('\n') !== -1) {
+      bouts.push('⚠ le jeton contient un espace : recolle-le');
+    } else if (!/^(ghp_|github_pat_|gho_|ghs_)/.test(jeton)) {
+      bouts.push('⚠ jeton de ' + jeton.length + ' caractères, mais il ne commence pas par ghp_ ni github_pat_');
+    } else {
+      bouts.push('✓ jeton : ' + echap(jeton.slice(0, 11)) + '… (' + jeton.length + ' caractères)');
+    }
+
+    const c = GH.lireConfig();
+    const pareil = c.owner === owner && c.repo === repo && c.jeton === jeton;
+    bouts.push(pareil && GH.estConfigure()
+      ? '— enregistré'
+      : '— pas encore enregistré, appuie sur Enregistrer');
+
+    $('etatJeton').innerHTML = bouts.join('<br>');
+  }
+
   function enregistrerConfig() {
-    GH.enregistrerConfig({
-      owner:   $('gOwner').value,
-      repo:    $('gRepo').value,
-      branche: $('gBranche').value,
-      chemin:  $('gChemin').value,
-      jeton:   $('gJeton').value
-    });
+    configDepuisChamps();
     eclair('Réglages enregistrés');
     rendreReglages();
     majEtatSync();
     if (GH.estConfigure()) synchroniser(true);
   }
 
+  /* Lit les champs de l'ecran et les enregistre, sans declencher de sync. */
+  function configDepuisChamps() {
+    return GH.enregistrerConfig({
+      owner:   $('gOwner').value,
+      repo:    $('gRepo').value,
+      branche: $('gBranche').value,
+      chemin:  $('gChemin').value,
+      jeton:   $('gJeton').value
+    });
+  }
+
   async function testerConnexion() {
+    /* On prend ce qui est affiche a l'ecran : inutile d'avoir enregistre avant. */
+    configDepuisChamps();
+    rendreReglages();
+    const c = GH.lireConfig();
+    const manque = [];
+    if (!c.owner) manque.push('le compte GitHub');
+    if (!c.repo)  manque.push('le dépôt');
+    if (!c.jeton) manque.push('le jeton');
+    if (manque.length) {
+      const liste = manque.length > 1
+        ? manque.slice(0, -1).join(', ') + ' et ' + manque[manque.length - 1]
+        : manque[0];
+      eclair('Il manque ' + liste + '.', true);
+      rendreReglages();
+      return;
+    }
     try {
       majPastille('attente', 'Test…');
       const r = await GH.tester();
       eclair('Connexion établie : ' + r.nom + (r.prive ? ' (privé)' : ' (public)'));
       majEtatSync();
+      rendreReglages();
     } catch (e) {
       eclair(e.message, true);
       majPastille('erreur', 'Erreur');
@@ -565,8 +625,9 @@ const App = (function () {
   let enCours = false;
 
   async function synchroniser(manuel) {
+    if (manuel && $('vue-reglages').classList.contains('active')) configDepuisChamps();
     if (!GH.estConfigure()) {
-      if (manuel) eclair('Renseigne d\'abord le dépôt GitHub', true);
+      if (manuel) eclair('Remplis le compte, le dépôt et le jeton, puis réessaie.', true);
       majEtatSync();
       return;
     }
@@ -658,6 +719,10 @@ const App = (function () {
       if (e.key === 'Enter') { e.preventDefault(); enregistrer(); }
     });
 
+    ['gOwner', 'gRepo', 'gBranche', 'gChemin', 'gJeton'].forEach(function (id) {
+      $(id).addEventListener('input', etatJeton);
+    });
+
     window.addEventListener('online',  function () { majEtatSync(); synchroniser(false); });
     window.addEventListener('offline', majEtatSync);
 
@@ -690,6 +755,7 @@ const App = (function () {
     calMois: calMois,
     enregistrerConfig: enregistrerConfig,
     testerConnexion: testerConnexion,
+    voirJeton: voirJeton,
     synchroniser: synchroniser,
     enregistrerSeuils: enregistrerSeuils,
     seuilsDefaut: seuilsDefaut,

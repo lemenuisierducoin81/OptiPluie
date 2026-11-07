@@ -158,7 +158,11 @@
     </div>
     <div class="champ">
       <label for="gJeton">Jeton d'accès (ghp_… ou github_pat_…)</label>
-      <input type="password" id="gJeton" placeholder="collé une seule fois" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <div class="avec-oeil">
+        <input type="password" id="gJeton" placeholder="colle la clé ici" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
+        <button type="button" class="oeil" id="btnOeil" onclick="App.voirJeton()" aria-label="Afficher le jeton">voir</button>
+      </div>
+      <div class="aide" id="etatJeton" style="margin-top:6px"></div>
     </div>
 
     <div class="ligne-btn">

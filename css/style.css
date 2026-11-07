@@ -315,3 +315,12 @@ tr.gris td{opacity:.4}
   main{padding-left:18px;padding-right:18px}
   .bloc{padding:18px}
 }
+
+/* Champ du jeton avec bouton « voir » */
+.avec-oeil{position:relative}
+.avec-oeil input{padding-right:62px}
+.oeil{
+  position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  background:var(--or);color:var(--noir);border-radius:8px;
+  padding:7px 11px;font-size:12.5px;font-weight:700;
+}
