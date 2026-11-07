@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>OptiPluie</title>
+<meta name="description" content="Relevé et classification des précipitations — Le Menuisier du Coin">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="OptiPluie">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="entete">
+  <div class="marque">
+    <h1>OptiPluie</h1>
+    <span class="lieu">Le Menuisier du Coin</span>
+  </div>
+  <button class="etat-sync" id="etatSync" onclick="App.allerReglages()">
+    <span class="pastille" id="pastille"></span>
+    <span id="texteSync">Local</span>
+  </button>
+</header>
+
+<main>
+
+<!-- ======================= SAISIE ======================= -->
+<div class="vue active" id="vue-saisie">
+
+  <div class="bloc">
+    <h2>Relevé du jour</h2>
+
+    <div class="champ">
+      <label for="fDate">Date</label>
+      <input type="date" id="fDate">
+    </div>
+
+    <div class="champ">
+      <label for="fMm">Hauteur relevée</label>
+      <div class="saisie-mm">
+        <input type="text" id="fMm" placeholder="0" inputmode="decimal" autocomplete="off" enterkeyhint="done">
+        <span class="unite">mm</span>
+      </div>
+      <div class="puces">
+        <button class="puce" onclick="App.ajoutRapide(1)">+1</button>
+        <button class="puce" onclick="App.ajoutRapide(2)">+2</button>
+        <button class="puce" onclick="App.ajoutRapide(5)">+5</button>
+        <button class="puce" onclick="App.ajoutRapide(10)">+10</button>
+        <button class="puce raz" onclick="App.ajoutRapide(0,true)">RAZ</button>
+      </div>
+    </div>
+
+    <div class="champ">
+      <label for="fNote">Note (facultatif)</label>
+      <input type="text" id="fNote" placeholder="ex. pose reportée, orage le soir…">
+    </div>
+
+    <div class="pile">
+      <button class="btn" onclick="App.enregistrer()">Enregistrer le relevé</button>
+      <button class="btn fantome petit" style="width:100%" onclick="App.jourSec()">Journée sans pluie (0 mm)</button>
+    </div>
+  </div>
+
+  <div class="bloc">
+    <h2>Le mois <span class="droite" id="calCumul"></span></h2>
+    <div class="cal-tete">
+      <button class="cal-nav" onclick="App.calMois(-1)">‹</button>
+      <div class="mois" id="calTitre"></div>
+      <button class="cal-nav" onclick="App.calMois(1)">›</button>
+    </div>
+    <div class="cal-grille" id="calGrille"></div>
+    <div class="cal-pied">
+      <span>Jours de pluie : <strong id="calJours">0</strong></span>
+      <span>Cumul : <strong id="calTotal">0 mm</strong></span>
+    </div>
+    <div class="aide">Touche un jour du calendrier pour le saisir ou le corriger.</div>
+  </div>
+
+</div>
+
+<!-- ======================= BILANS ======================= -->
+<div class="vue" id="vue-bilans">
+
+  <div class="bloc">
+    <h2>Cumuls par période</h2>
+    <div class="cartes" id="cartesBilan"></div>
+  </div>
+
+  <div class="bloc">
+    <h2>Classification journalière</h2>
+    <div class="legende" id="legende"></div>
+    <div class="aide">La classe d'un jour dépend de la hauteur relevée sur 24 h. Les seuils se modifient dans Réglages.</div>
+  </div>
+
+  <div class="bloc">
+    <h2>Par mois <span class="droite"><select id="selAnnee" style="width:auto;padding:4px 8px;font-size:13px" onchange="App.rendre()"></select></span></h2>
+    <div class="graph" id="graph"></div>
+    <div class="g-labels" id="graphLabels"></div>
+    <table style="margin-top:14px">
+      <thead><tr><th>Mois</th><th class="num">Cumul</th><th class="num">Jours</th><th class="num">Max/j</th></tr></thead>
+      <tbody id="tblMois"></tbody>
+    </table>
+  </div>
+
+  <div class="bloc">
+    <h2>Comparaison des années</h2>
+    <table>
+      <thead><tr><th>Année</th><th class="num">Cumul</th><th class="num">Jours</th><th class="num">Max/j</th></tr></thead>
+      <tbody id="tblAnnees"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- ===================== HISTORIQUE ===================== -->
+<div class="vue" id="vue-historique">
+  <div class="bloc">
+    <h2>Historique <span class="droite" id="cptHisto"></span></h2>
+    <div class="filtres">
+      <select id="filtreAnnee" onchange="App.rendre()"></select>
+      <select id="filtreClasse" onchange="App.rendre()">
+        <option value="">Toutes classes</option>
+      </select>
+    </div>
+    <div id="histo"></div>
+  </div>
+</div>
+
+<!-- ====================== RÉGLAGES ====================== -->
+<div class="vue" id="vue-reglages">
+
+  <div class="bloc">
+    <h2>Sauvegarde GitHub</h2>
+    <div class="aide fort" id="resumeSync">Non configuré : les relevés restent sur cet appareil.</div>
+
+    <div class="champ" style="margin-top:14px">
+      <label for="gOwner">Compte GitHub (propriétaire)</label>
+      <input type="text" id="gOwner" placeholder="moncompte" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </div>
+    <div class="champ">
+      <label for="gRepo">Dépôt des données</label>
+      <input type="text" id="gRepo" placeholder="optipluie-donnees" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </div>
+    <div class="duo">
+      <div class="champ">
+        <label for="gBranche">Branche</label>
+        <input type="text" id="gBranche" placeholder="main" autocapitalize="off" autocorrect="off" spellcheck="false">
+      </div>
+      <div class="champ">
+        <label for="gChemin">Fichier</label>
+        <input type="text" id="gChemin" placeholder="data/releves.json" autocapitalize="off" autocorrect="off" spellcheck="false">
+      </div>
+    </div>
+    <div class="champ">
+      <label for="gJeton">Jeton d'accès (ghp_… ou github_pat_…)</label>
+      <input type="password" id="gJeton" placeholder="collé une seule fois" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </div>
+
+    <div class="ligne-btn">
+      <button class="btn or petit" onclick="App.enregistrerConfig()">Enregistrer</button>
+      <button class="btn fantome petit" onclick="App.testerConnexion()">Tester</button>
+    </div>
+    <div class="pile" style="margin-top:9px">
+      <button class="btn petit" style="width:100%" onclick="App.synchroniser(true)">Synchroniser maintenant</button>
+    </div>
+
+    <div class="aide">
+      Le jeton reste sur cet appareil, dans ce navigateur. Il n'est jamais écrit dans le dépôt.
+      Pour le retirer : vide le champ et enregistre.
+    </div>
+  </div>
+
+  <div class="bloc">
+    <h2>Seuils de classification</h2>
+    <div class="seuils" id="seuils"></div>
+    <div class="ligne-btn" style="margin-top:12px">
+      <button class="btn or petit" onclick="App.enregistrerSeuils()">Appliquer</button>
+      <button class="btn fantome petit" onclick="App.seuilsDefaut()">Valeurs d'origine</button>
+    </div>
+    <div class="aide">Hauteur maximale de chaque classe, en mm sur 24 h. Au-delà du dernier seuil : « Très forte ».</div>
+  </div>
+
+  <div class="bloc">
+    <h2>Export</h2>
+    <div class="ligne-btn">
+      <button class="btn or petit" onclick="App.exportCSV()">CSV (Excel)</button>
+      <button class="btn or petit" onclick="App.exportJSON()">Fichier JSON</button>
+    </div>
+    <div class="pile" style="margin-top:9px">
+      <button class="btn fantome petit" style="width:100%" onclick="document.getElementById('fImport').click()">Importer un fichier JSON</button>
+      <input type="file" id="fImport" accept=".json,application/json" hidden onchange="App.importJSON(event)">
+    </div>
+  </div>
+
+  <div class="bloc">
+    <h2>Appareil</h2>
+    <div class="aide" id="infoLocal"></div>
+    <div class="pile" style="margin-top:12px">
+      <button class="btn danger petit" style="width:100%" onclick="App.viderLocal()">Effacer les données de cet appareil</button>
+    </div>
+    <div class="aide">
+      N'efface que la copie locale. Si la synchronisation est active, les relevés sont toujours dans le dépôt GitHub
+      et redescendront à la prochaine ouverture.
+    </div>
+  </div>
+
+  <div class="bloc">
+    <h2>À propos</h2>
+    <div class="aide" style="margin-top:0">
+      <strong>OptiPluie</strong> — relevé et classification des précipitations.<br>
+      Le Menuisier du Coin, Alban (81).<br>
+      Version <span id="versionApp">1.0</span>
+    </div>
+  </div>
+
+</div>
+
+</main>
+
+<!-- ====================== ONGLETS ====================== -->
+<nav class="onglets">
+  <button class="onglet actif" data-vue="saisie" onclick="App.onglet('saisie')">
+    <svg viewBox="0 0 24 24"><path d="M12 3s6 6.4 6 10.3A6 6 0 0 1 6 13.3C6 9.4 12 3 12 3z"/></svg>
+    Saisie
+  </button>
+  <button class="onglet" data-vue="bilans" onclick="App.onglet('bilans')">
+    <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+    Bilans
+  </button>
+  <button class="onglet" data-vue="historique" onclick="App.onglet('historique')">
+    <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+    Historique
+  </button>
+  <button class="onglet" data-vue="reglages" onclick="App.onglet('reglages')">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7.9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H2a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 7.9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 2.7-1.1V2a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H22a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
+    Réglages
+    <span class="pastille-att" id="pastilleOnglet"></span>
+  </button>
+</nav>
+
+<div class="eclair" id="eclair"></div>
+
+<script src="js/github.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
